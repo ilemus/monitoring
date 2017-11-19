@@ -1,4 +1,4 @@
-import os, json, time, google_finance, file_reader, calculations
+import os, json, time, google_finance, file_reader, calculations, signal
 
 
 # https://stackoverflow.com/questions/287871/print-in-terminal-with-colors
@@ -16,6 +16,8 @@ class Index:
     closes = []
     ema = []
     share = google_finance.Share
+    est_end = 0.0
+    stop_loss = 0.0
 
 
 class Monitoring:
@@ -26,6 +28,7 @@ class Monitoring:
     def __init__(self, args):
         self.mArgs = args
         self.load_preferences()
+        signal.signal(signal.SIGINT, self.signal_handler)
 
     def clear(self):
         os.system('cls')
@@ -50,7 +53,18 @@ class Monitoring:
                         current_price = string_b_on_lg('(+' + "{0:.2f}".format(delta / op * 100) + '%) ' + str(l))
                     else:
                         current_price = string_b_on_lr('(-' + "{0:.2f}".format(abs(delta) / op * 100) + '%) ' + str(l))
-                    out_line = self.mList[i] + ': ' + current_price
+                    temp = self.indexes[i].closes
+                    temp.append(l)
+                    new_stoch = calculations.get_k(temp, 14)
+                    temp.pop(len(temp) - 1)
+                    stochastic_print = ''
+                    delta = new_stoch[len(new_stoch) - 1] - new_stoch[len(new_stoch) - 2]
+                    if delta >= 0:
+                        stochastic_print = string_b_on_lg("{0:.2f}".format(new_stoch[len(new_stoch) - 1]))
+                    else:
+                        stochastic_print = string_b_on_lr("{0:.2f}".format(new_stoch[len(new_stoch) - 1]))
+
+                    out_line = self.mList[i] + ':\t' + current_price + '\t' + stochastic_print
                     print(out_line)
 
             time.sleep(5)
@@ -62,7 +76,8 @@ class Monitoring:
                 temp = json.loads(file_object.read())
                 for index in temp['indexes']:
                     self.mList.append(index)
-
+        if not os.path.exists("prefs/indexes"):
+            os.makedirs("prefs/indexes")
         if len(self.mList) > 0 and os.path.exists("prefs/indexes"):
             for index in self.mList:
                 if os.path.isfile("prefs/indexes/" + index):
@@ -85,18 +100,28 @@ class Monitoring:
         ema24 = calculations.get_ema(closes, 24)
 
 
-        ret_obj = Index
+        ret_obj = Index()
         ret_obj.stochastic = stochastic[len(stochastic) - 20: len(stochastic)]
         ret_obj.ema = ema24[len(ema24) - 20: len(ema24)]
         ret_obj.closes = closes[len(closes) - 20: len(closes)]
         ret_obj.share = google_finance.Share(index)
-        ret_obj.purchase_price = float(input("Enter purcahse price " + index + ": "))
+        ret_obj.purchase_price = float(input("Enter purchase price " + index + ": "))
 
+        if (stochastic[len(stochastic) - 1] - stochastic[len(stochastic) - 2]) == 0:
+            ret_obj.est_end = 0
+        else:
+            ret_obj.est_end = (80 - stochastic[len(stochastic) - 1])\
+                              * (closes[len(closes) - 1] - closes[len(closes) - 2]) * 100\
+                          / (stochastic[len(stochastic) - 1] - stochastic[len(stochastic) - 2])
+
+        ret_obj.stop_loss = ret_obj.purchase_price - (1 / 4) * (ret_obj.est_end - ret_obj.purchase_price)
+
+        return ret_obj
 
     def parse_index(self, jObj):
-        ret_obj = Index
+        ret_obj = Index()
         if 'purchase_price' in jObj:
-            ret_obj.purchase_price = jObj['purchase_price']
+            ret_obj.purchase_price = float(jObj['purchase_price'])
         if 'stochastic' in jObj:
             for stoch in jObj['stochastic']:
                 ret_obj.stochastic.append(float(stoch))
@@ -106,6 +131,10 @@ class Monitoring:
         if 'ema' in jObj:
             for ema in jObj['ema']:
                 ret_obj.ema.append(float(ema))
+        if 'est_end' in jObj:
+            ret_obj.est_end = float(jObj['est_end'])
+        if 'stop_loss' in jObj:
+            ret_obj.stop_loss = float(jObj['stop_loss'])
         return ret_obj
 
     def create_index(self, index):
@@ -117,6 +146,8 @@ class Monitoring:
             jObj['closes'].append(close)
         for ema in index.ema:
             jObj['ema'].append(ema)
+        jObj['est_end'] = index.est_end
+        jObj['stop_loss'] = index.stop_loss
 
         return jObj
 
@@ -133,6 +164,10 @@ class Monitoring:
         except OSError:
             return
 
+    def signal_handler(self, signal, frame):
+        print('Saving...')
+        self.save_to_file()
+        exit(0)
 
-# temp = Monitoring('asdf')
-# temp.run()
+temp = Monitoring('asdf')
+temp.run()

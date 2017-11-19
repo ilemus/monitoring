@@ -158,22 +158,22 @@ def spawn_worker(arg, current):
                       + ' ' + "{0:.2f}".format(closes[last_day]) + ' '
                       + "{0:.2f}".format(ema_delta) + ' '
                       + "{0:.2f}".format(stochastic[last_day]) + " " + "{0:.2f}".format(value))
-        elif stochastic[last_day] > 80:
-            if stochastic[last_day - 1] > stochastic[last_day]:
-                meta = Share(index)
+        # elif stochastic[last_day] > 80:
+        #     if stochastic[last_day - 1] > stochastic[last_day]:
+        #         meta = Share(index)
                 # sys.stdout.flush()
-                print('[' + meta.get_industry() + '] sell ' + index+ ' ' + meta.get_market_cap()
-                      + ' ' + "{0:.2f}".format(closes[last_day]) + ' '
-                      + "{0:.2f}".format(ema_delta) + ' '
-                      + "{0:.2f}".format(stochastic[last_day]) + " " + "{0:.2f}".format(value))
-        elif 20 < stochastic[last_day] < 80:
-            if avg_1 > avg_0:
-                meta = Share(index)
+        #         print('[' + meta.get_industry() + '] sell ' + index+ ' ' + meta.get_market_cap()
+        #               + ' ' + "{0:.2f}".format(closes[last_day]) + ' '
+        #               + "{0:.2f}".format(ema_delta) + ' '
+        #               + "{0:.2f}".format(stochastic[last_day]) + " " + "{0:.2f}".format(value))
+        # elif 20 < stochastic[last_day] < 80:
+        #     if avg_1 > avg_0:
+        #         meta = Share(index)
                 # sys.stdout.flush()
-                print('[' + meta.get_industry() + '] sell ' + index + ' ' + meta.get_market_cap()
-                      + ' ' + "{0:.2f}".format(closes[last_day]) + ' '
-                      + "{0:.2f}".format(ema_delta) + ' '
-                      + "{0:.2f}".format(stochastic[last_day]) + " " + "{0:.2f}".format(value))
+        #         print('[' + meta.get_industry() + '] sell ' + index + ' ' + meta.get_market_cap()
+        #               + ' ' + "{0:.2f}".format(closes[last_day]) + ' '
+        #               + "{0:.2f}".format(ema_delta) + ' '
+        #               + "{0:.2f}".format(stochastic[last_day]) + " " + "{0:.2f}".format(value))
 
     # time.sleep(1)
 
