@@ -59,7 +59,6 @@ class Share:
 
     def refresh(self):
         rsp = requests.get('https://finance.google.com/finance?q=' + self.mSymbol + '&output=json')
-        print("loading from web")
         if rsp.status_code in (200,):
             jobj = json.loads(rsp.content[6:-2].decode('unicode_escape'))
             self.jResp = jobj
