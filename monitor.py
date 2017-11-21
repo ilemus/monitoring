@@ -12,24 +12,18 @@ def string_b_on_lr(line):
 
 
 class Index:
-    purchase_price = 0.0
     stochastic = []
     closes = []
     ema = []
     share = google_finance.Share
-    est_end = 0.0
-    stop_loss = 0.0
-    purchase_date = None
+    avg_stoch = 0.0
 
     def __init__(self):
-        self.purchase_price = 0.0
         self.stochastic = []
         self.closes = []
         self.ema = []
         self.share = None
-        self.est_end = 0.0
-        self.stop_loss = 0.0
-        self.purchase_date = None
+        self.avg_stoch = 0.0
 
 
 class Monitoring:
@@ -49,7 +43,7 @@ class Monitoring:
     def run(self):
         while 1 == 1:
             self.clear()
-            print("index\t%chg/price\t%K")
+            print("index\t%chg/price\t%K\td%K\tAvg. %K")
             list_size = len(self.mList)
             if len(self.mList) == 0:
                 text = input("Enter stock to watch: ")
@@ -78,13 +72,17 @@ class Monitoring:
                     else:
                         stochastic_print = string_b_on_lr("{0:.2f}".format(new_stoch[len(new_stoch) - 1]))
 
+
+                    stoch_delta = "{0:.2f}".format(delta)
+                    avg_stoch = "{0:.2f}".format(self.indexes[i].avg_stoch)
                     # date = datetime.strptime(self.indexes[i].purchase_date, '%YYYY-%mm-%dd')
 
                     # Format is index\t%chg price\tstochiastic
-                    out_line = self.mList[i] + ':\t' + current_price + '\t' + stochastic_print
+                    out_line = self.mList[i] + ':\t' + current_price + '\t' + stochastic_print\
+                               + '\t' + stoch_delta + '\t' + avg_stoch
                     print(out_line)
 
-            time.sleep(30)
+            time.sleep(300)
 
     def load_preferences(self):
         if os.path.exists("prefs"):
@@ -121,24 +119,15 @@ class Monitoring:
         ret_obj.ema = ema24[len(ema24) - 20: len(ema24)]
         ret_obj.closes = closes[len(closes) - 20: len(closes)]
         ret_obj.share = google_finance.Share(index)
-        ret_obj.purchase_price = float(input("Enter purchase price " + index + ": "))
-        ret_obj.purchase_date = input("Enter time [YYYY-mm-dd]: ")
-
-        if (stochastic[len(stochastic) - 1] - stochastic[len(stochastic) - 2]) == 0:
-            ret_obj.est_end = 0
+        if len(stochastic) > 100:
+            ret_obj.avg_stoch = sum(stochastic[len(stochastic) - 90: len(stochastic)]) / 90
         else:
-            ret_obj.est_end = (80 - stochastic[len(stochastic) - 1])\
-                              * (closes[len(closes) - 1] - closes[len(closes) - 2]) * 100\
-                               / (stochastic[len(stochastic) - 1] - stochastic[len(stochastic) - 2])
-
-        ret_obj.stop_loss = ret_obj.purchase_price - (1 / 4) * (ret_obj.est_end - ret_obj.purchase_price)
+            ret_obj.avg_stoch = sum(stochastic[len(stochastic) - 20: len(stochastic)]) / 20
 
         return ret_obj
 
     def parse_index(self, jObj):
         ret_obj = Index()
-        if 'purchase_price' in jObj:
-            ret_obj.purchase_price = float(jObj['purchase_price'])
         if 'stochastic' in jObj:
             for stoch in jObj['stochastic']:
                 ret_obj.stochastic.append(float(stoch))
@@ -148,26 +137,19 @@ class Monitoring:
         if 'ema' in jObj:
             for ema in jObj['ema']:
                 ret_obj.ema.append(float(ema))
-        if 'est_end' in jObj:
-            ret_obj.est_end = float(jObj['est_end'])
-        if 'stop_loss' in jObj:
-            ret_obj.stop_loss = float(jObj['stop_loss'])
-        if 'purchase_date' in jObj:
-            ret_obj.purchase_date = jObj['purchase_date']
+        if 'avg_stoch' in jObj:
+            ret_obj.avg_stoch = jObj['avg_stoch']
         return ret_obj
 
     def create_index(self, idx):
-        jObj = {'purchase_price': 0.0, 'stochastic': [], 'closes': [], 'ema': [], 'purchase_date': ''}
-        jObj['purchase_price'] = idx.purchase_price
+        jObj = {'stochastic': [], 'closes': [], 'ema': [], 'avg_stoch': ''}
         for stoch in idx.stochastic:
             jObj['stochastic'].append(stoch)
         for close in idx.closes:
             jObj['closes'].append(close)
         for ema in idx.ema:
             jObj['ema'].append(ema)
-        jObj['est_end'] = idx.est_end
-        jObj['stop_loss'] = idx.stop_loss
-        jObj['purchase_date'] = idx.purchase_date
+        jObj['avg_stoch'] = idx.avg_stoch
 
         return jObj
 
