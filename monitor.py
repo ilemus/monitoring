@@ -180,6 +180,3 @@ class Monitoring:
         print('Saving...')
         self.save_to_file()
         exit(0)
-
-temp = Monitoring('asdf')
-temp.run()

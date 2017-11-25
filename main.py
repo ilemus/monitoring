@@ -8,6 +8,99 @@ from google_finance import Share
 # import matplotlib.pyplot
 import sys
 import monitor
+import sectors
+
+
+def practice_worker(index, current):
+    datetime_temp = datetime.datetime.strptime('Nov 10 2015  3:20PM', '%b %d %Y %I:%M%p')
+    index_after_time = 0
+    array = file_reader.get_index_data(index)
+    times = []
+    closes = []
+    for tick in array:
+        closes.append(tick.Close)
+        times.append(tick.Datetime)
+
+    stochastic = calculations.get_k(closes, 20)
+    ppo = calculations.get_ppo(closes)
+    ema24 = calculations.get_ema(closes, 24)
+
+    if len(ema24) == 0 or len(ppo) == 0 or len(stochastic) == 0:
+        return
+
+    for i in range(len(closes)):
+        if times[i] > datetime_temp:
+            index_after_time = i
+            break
+
+    has_active_trend = False
+    has_long_trend = False
+    total_trend = 0
+    total_days_spent = 0
+    buy_value = []
+    total_gains = 0.0
+    new_rate = 0
+    stop_loss = 0
+    days_owned = 0
+
+    buy_val_long = []
+    total_gains_long = 0.0
+    days_owned_long = 0
+    for i in range(index_after_time, len(closes)):
+        if len(buy_value) > 0:
+            days_owned += 1
+        if len(buy_val_long) > 0:
+            days_owned_long += 1
+
+        if has_active_trend and len(buy_value) > 1 and closes[i] < stop_loss:
+            buy = buy_value.pop(0)
+            total_gains += (closes[i] - buy) / buy
+            has_active_trend = False
+
+        if 20 < stochastic[i] < 80:
+            if not has_active_trend and stochastic[i - 1] < 20:
+                total_trend += 1
+                has_active_trend = True
+                buy_value.append(closes[i])
+
+                if stochastic[i] > stochastic[i - 1] and 80 > stochastic[i] > 20:
+                    if stochastic[i] - stochastic[i - 1] == 0:
+                        delta_stoch = 0
+                    else:
+                        delta_stoch = (closes[i] - closes[i - 1]) / (stochastic[i] - stochastic[i - 1])
+
+                    new_rate = delta_stoch * (80.0 - stochastic[i])
+
+                stop_loss = closes[i] - (new_rate / 4)
+            if has_active_trend:
+                total_days_spent += 1
+
+        if stochastic[i] >= 80 and has_active_trend:
+            has_active_trend = False
+            buy = buy_value.pop(0)
+            total_gains += (closes[i] - buy) / buy
+
+        if stochastic[i] > 50 and not has_long_trend:
+            has_long_trend = True
+            buy_val_long.append(closes[i])
+
+        if stochastic[i] < 50 and has_long_trend:
+            has_long_trend = False
+            temp = buy_val_long.pop(0)
+            total_gains_long += (closes[i] - temp) / temp
+
+    # ATR = average trend-rate
+    printl = 0
+    if total_trend != 0:
+        printl = total_days_spent / total_trend
+    print(index + " ATR: " + str(printl) + " Gains %: " + str(total_gains * 100) + ", days owned: " + str(days_owned))
+    print(index + " Gains %: " + str(total_gains_long * 100) + ", days owned: " + str(days_owned_long))
+
+
+def health_worker(index, current):
+    share = Share(index)
+    num_shares = share.parse_formatted(share.get_shares())
+
 
 
 def spawn_worker(arg, current):
@@ -179,15 +272,15 @@ def spawn_worker(arg, current):
 
 
 if __name__ == "__main__":
-    args = sys.argv
-    if len(sys.argv > 1):
-        temp = monitor.Monitoring
-        temp.run()
-        exit()
+    # args = sys.argv
+    # if len(sys.argv > 1) and False:
+        # temp = monitor.Monitoring
+        # temp.run()
+        # exit()
 
     threads = []
     # this is your portfolio
-    indexes = file_reader.get_indexes_list()
+    indexes = sectors.Sectors.tech # ['amd', 'ba', 'baba', 'jd', 'ual', 'jnj', 'amzn', 'nvda', 'nflx', 'tsla'] # file_reader.get_indexes_list()
     # date = datetime.datetime.strptime('Nov 10 2017  3:20PM', '%b %d %Y %I:%M%p')
     # date2 = datetime.datetime.strptime('Nov 10 2017  4:00PM', '%b %d %Y %I:%M%p')
     # print(str((date2 - date).total_seconds()))
@@ -196,12 +289,16 @@ if __name__ == "__main__":
     # else:
         # print('false')
     # exit()
-    print("industry buy/sell Cap price ema_delta %K dPdK")
+
+    # print("industry buy/sell Cap price ema_delta %K dPdK")
+
+    for i in range(len(indexes)):
+        indexes[i] = indexes[i].lower()
 
     while 1 == 1:
         old_time = time.time()
         for i in range(len(indexes)):
-            threads.append(Thread(target=spawn_worker, args=(indexes[i], i, )))
+            threads.append(Thread(target=health_worker, args=(indexes[i], i, )))
             threads[len(threads) - 1].start()
             if i % 4 == 0:
                 # sys.stdout.flush()

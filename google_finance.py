@@ -16,6 +16,7 @@ class Share:
     average_volume = 'N/A'
     jResp = None
     mSymbol = None
+    shares = ''
 
     def __init__(self, symbol):
         self.mSymbol = symbol
@@ -54,6 +55,8 @@ class Share:
                 self.daily_volume = jobj['vo']
             if 'avvo' in jobj:
                 self.average_volume = jobj['avvo']
+            if 'shares' in jobj:
+                self.shares = jobj['shares']
         except KeyError:
             return
 
@@ -88,6 +91,24 @@ class Share:
 
     def get_average_volume(self):
         return self.average_volume
+
+    def get_shares(self):
+        return self.shares
+
+    def parse_formatted(self, value):
+        appen = value[-1:]
+
+        ret_val = float(value[0:len(value) - 2])
+
+        if appen == 'M':
+            ret_val *= 1000000
+        elif appen == 'B':
+            ret_val *= 1000000000
+        elif appen == 'T':
+            ret_val *= 1000000000000
+
+        return ret_val
+
 
     def save_to_file(self):
         try:
