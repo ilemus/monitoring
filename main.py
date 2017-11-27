@@ -97,11 +97,46 @@ def practice_worker(index, current):
     print(index + " Gains %: " + str(total_gains_long * 100) + ", days owned: " + str(days_owned_long))
 
 
-def health_worker(index, current):
-    share = Share(index)
-    num_shares = share.parse_formatted(share.get_shares())
+def cycle_worker(index, current):
+    datetime_temp = datetime.datetime.strptime('Nov 10 2016  3:20PM', '%b %d %Y %I:%M%p')
+    array = file_reader.get_index_data(index)
+    times = []
+    closes = []
+    index_after_time = 0
+    for tick in array:
+        closes.append(tick.Close)
+        times.append(tick.Datetime)
+
+    for i in range(len(times)):
+        if times[i] > datetime_temp:
+            index_after_time = i
+            break
+
+    stochastic = calculations.get_k(closes, 14)
 
 
+    if len(stochastic) == 0:
+        return
+
+    buy_arr = []
+    total_percent_change = 0.0
+    days_owned = 0
+    for i in range(index_after_time, len(closes)):
+        if len(buy_arr) > 0:
+            days_owned += 1
+
+        if len(buy_arr) == 0 and stochastic[i - 1] < stochastic[i] < 50:
+            buy_arr.append(closes[i])
+            print(datetime.datetime.strftime(times[i], "%x") + " " + "{0:.2f}".format(stochastic[i]) + " " + str(closes[i]))
+
+        if len(buy_arr) > 0:
+            if stochastic[i] > 80 > stochastic[i - 1]:
+                buy_price = buy_arr.pop(0)
+                total_percent_change += (closes[i] - buy_price) / buy_price
+                print(datetime.datetime.strftime(times[i], "%x") + " " + "{0:.2f}".format(stochastic[i]) + " " + str(
+                    closes[i]) + "\n")
+
+    print(index + " %C: " + "{0:.2f}".format(total_percent_change * 100) + " owned: " + str(days_owned))
 
 def spawn_worker(arg, current):
     datetime_temp = datetime.datetime.strptime('Nov 10 2017  3:20PM', '%b %d %Y %I:%M%p')
@@ -280,7 +315,7 @@ if __name__ == "__main__":
 
     threads = []
     # this is your portfolio
-    indexes = sectors.Sectors.tech # ['amd', 'ba', 'baba', 'jd', 'ual', 'jnj', 'amzn', 'nvda', 'nflx', 'tsla'] # file_reader.get_indexes_list()
+    indexes = ['adp'] # sectors.Sectors.tech # ['amd', 'ba', 'baba', 'jd', 'ual', 'jnj', 'amzn', 'nvda', 'nflx', 'tsla'] # file_reader.get_indexes_list()
     # date = datetime.datetime.strptime('Nov 10 2017  3:20PM', '%b %d %Y %I:%M%p')
     # date2 = datetime.datetime.strptime('Nov 10 2017  4:00PM', '%b %d %Y %I:%M%p')
     # print(str((date2 - date).total_seconds()))
@@ -298,7 +333,7 @@ if __name__ == "__main__":
     while 1 == 1:
         old_time = time.time()
         for i in range(len(indexes)):
-            threads.append(Thread(target=health_worker, args=(indexes[i], i, )))
+            threads.append(Thread(target=cycle_worker, args=(indexes[i], i, )))
             threads[len(threads) - 1].start()
             if i % 4 == 0:
                 # sys.stdout.flush()

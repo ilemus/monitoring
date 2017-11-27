@@ -50,7 +50,10 @@ class Share:
             if 'sname' in jobj:
                 self.industry = jobj['sname']
             if 'pe' in jobj:
-                self.pe_ratio = jobj['pe']
+                try:
+                    self.pe_ratio = float(jobj['pe'].replace(',', ''))
+                except ValueError:
+                    print(jobj['pe'])
             if 'vo' in jobj:
                 self.daily_volume = jobj['vo']
             if 'avvo' in jobj:
@@ -98,7 +101,10 @@ class Share:
     def parse_formatted(self, value):
         appen = value[-1:]
 
-        ret_val = float(value[0:len(value) - 2])
+        try:
+            ret_val = float(value[0:len(value) - 2])
+        except ValueError:
+            ret_val = 0
 
         if appen == 'M':
             ret_val *= 1000000
