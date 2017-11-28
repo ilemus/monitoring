@@ -97,6 +97,12 @@ def practice_worker(index, current):
     print(index + " Gains %: " + str(total_gains_long * 100) + ", days owned: " + str(days_owned_long))
 
 
+# [c, d1]
+# [c, d1, d2]
+# ...
+average_streaks = [[0 for x in range(16)] for y in range(15)]
+
+
 def cycle_worker(index, current):
     datetime_temp = datetime.datetime.strptime('Nov 10 2016  3:20PM', '%b %d %Y %I:%M%p')
     array = file_reader.get_index_data(index)
@@ -121,22 +127,34 @@ def cycle_worker(index, current):
     buy_arr = []
     total_percent_change = 0.0
     days_owned = 0
+    gain_rate = []
+    rates = []
     for i in range(index_after_time, len(closes)):
         if len(buy_arr) > 0:
             days_owned += 1
+            gain_rate.append((closes[i] - buy_arr[0]) / buy_arr[0] * 100)
 
         if len(buy_arr) == 0 and stochastic[i - 1] < stochastic[i] < 50:
             buy_arr.append(closes[i])
-            print(datetime.datetime.strftime(times[i], "%x") + " " + "{0:.2f}".format(stochastic[i]) + " " + str(closes[i]))
 
         if len(buy_arr) > 0:
             if stochastic[i] > 80 > stochastic[i - 1]:
                 buy_price = buy_arr.pop(0)
                 total_percent_change += (closes[i] - buy_price) / buy_price
-                print(datetime.datetime.strftime(times[i], "%x") + " " + "{0:.2f}".format(stochastic[i]) + " " + str(
-                    closes[i]) + "\n")
+                if len(gain_rate) > 0:
+                    rates.append(gain_rate)
+                    gain_rate = []
 
-    print(index + " %C: " + "{0:.2f}".format(total_percent_change * 100) + " owned: " + str(days_owned))
+    for rate in rates:
+        if 0 < len(rate) < 16:
+            for i in range(len(rate)):
+                average_streaks[len(rate) - 1][i + 1] = (rate[i] + average_streaks[len(rate) - 1][i + 1]
+                                                         * average_streaks[len(rate) - 1][0])\
+                                                        / (average_streaks[len(rate) - 1][0] + 1)
+            average_streaks[len(rate) - 1][0] += 1
+
+    # print(index + " %C: " + "{0:.2f}".format(total_percent_change * 100) + " owned: " + str(days_owned))
+
 
 def spawn_worker(arg, current):
     datetime_temp = datetime.datetime.strptime('Nov 10 2017  3:20PM', '%b %d %Y %I:%M%p')
@@ -315,7 +333,7 @@ if __name__ == "__main__":
 
     threads = []
     # this is your portfolio
-    indexes = ['adp'] # sectors.Sectors.tech # ['amd', 'ba', 'baba', 'jd', 'ual', 'jnj', 'amzn', 'nvda', 'nflx', 'tsla'] # file_reader.get_indexes_list()
+    indexes = file_reader.get_indexes_list() # sectors.Sectors.tech # ['amd', 'ba', 'baba', 'jd', 'ual', 'jnj', 'amzn', 'nvda', 'nflx', 'tsla']
     # date = datetime.datetime.strptime('Nov 10 2017  3:20PM', '%b %d %Y %I:%M%p')
     # date2 = datetime.datetime.strptime('Nov 10 2017  4:00PM', '%b %d %Y %I:%M%p')
     # print(str((date2 - date).total_seconds()))
@@ -351,6 +369,9 @@ if __name__ == "__main__":
             break
         else:
             break
+
+    for i in range(15):
+        print(average_streaks[i])
 
     time.sleep(1)
     print("thread finished...exiting")
