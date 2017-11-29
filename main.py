@@ -101,6 +101,7 @@ def practice_worker(index, current):
 # [c, d1, d2]
 # ...
 average_streaks = [[0 for x in range(16)] for y in range(15)]
+average_streaks_n = [[0 for x in range(16)] for y in range(15)]
 
 
 def cycle_worker(index, current):
@@ -108,7 +109,7 @@ def cycle_worker(index, current):
     array = file_reader.get_index_data(index)
     times = []
     closes = []
-    index_after_time = 0
+    index_after_time = -1
     for tick in array:
         closes.append(tick.Close)
         times.append(tick.Datetime)
@@ -119,23 +120,33 @@ def cycle_worker(index, current):
             break
 
     stochastic = calculations.get_k(closes, 14)
+    ema20 = calculations.get_ema(closes, 20)
 
-
-    if len(stochastic) == 0:
+    if len(stochastic) == 0 or index_after_time == -1 or len(ema20) == 0:
         return
 
     buy_arr = []
+    buy_arr_n = []
     total_percent_change = 0.0
     days_owned = 0
     gain_rate = []
+    gain_rate_n = []
     rates = []
+    rates_n = []
     for i in range(index_after_time, len(closes)):
         if len(buy_arr) > 0:
             days_owned += 1
             gain_rate.append((closes[i] - buy_arr[0]) / buy_arr[0] * 100)
 
-        if len(buy_arr) == 0 and stochastic[i - 1] < stochastic[i] < 50:
-            buy_arr.append(closes[i])
+        if len(buy_arr_n) > 0:
+            gain_rate_n.append((closes[i] - buy_arr_n[0]) / buy_arr_n[0] * 100)
+
+        if ema20[i] > ema20[i - 1]:
+            if len(buy_arr) == 0 and stochastic[i - 1] < stochastic[i] < 50:
+                buy_arr.append(closes[i])
+        else:
+            if len(buy_arr_n) == 0 and stochastic[i - 1] < stochastic[i] < 50:
+                buy_arr_n.append(closes[i])
 
         if len(buy_arr) > 0:
             if stochastic[i] > 80 > stochastic[i - 1]:
@@ -145,6 +156,13 @@ def cycle_worker(index, current):
                     rates.append(gain_rate)
                     gain_rate = []
 
+        if len(buy_arr_n) > 0:
+            if stochastic[i] > 80 > stochastic[i - 1]:
+                buy_price = buy_arr_n.pop(0)
+                if len(gain_rate_n) > 0:
+                    rates_n.append(gain_rate_n)
+                    gain_rate_n = []
+
     for rate in rates:
         if 0 < len(rate) < 16:
             for i in range(len(rate)):
@@ -152,6 +170,14 @@ def cycle_worker(index, current):
                                                          * average_streaks[len(rate) - 1][0])\
                                                         / (average_streaks[len(rate) - 1][0] + 1)
             average_streaks[len(rate) - 1][0] += 1
+
+    for rate in rates_n:
+        if 0 < len(rate) < 16:
+            for i in range(len(rate)):
+                average_streaks_n[len(rate) - 1][i + 1] = (rate[i] + average_streaks_n[len(rate) - 1][i + 1]
+                                                         * average_streaks_n[len(rate) - 1][0]) \
+                                                        / (average_streaks_n[len(rate) - 1][0] + 1)
+                average_streaks_n[len(rate) - 1][0] += 1
 
     # print(index + " %C: " + "{0:.2f}".format(total_percent_change * 100) + " owned: " + str(days_owned))
 
@@ -333,7 +359,7 @@ if __name__ == "__main__":
 
     threads = []
     # this is your portfolio
-    indexes = file_reader.get_indexes_list() # sectors.Sectors.tech # ['amd', 'ba', 'baba', 'jd', 'ual', 'jnj', 'amzn', 'nvda', 'nflx', 'tsla']
+    indexes = sectors.Sectors.tech # file_reader.get_indexes_list() # ['amd', 'ba', 'baba', 'jd', 'ual', 'jnj', 'amzn', 'nvda', 'nflx', 'tsla']
     # date = datetime.datetime.strptime('Nov 10 2017  3:20PM', '%b %d %Y %I:%M%p')
     # date2 = datetime.datetime.strptime('Nov 10 2017  4:00PM', '%b %d %Y %I:%M%p')
     # print(str((date2 - date).total_seconds()))
@@ -372,6 +398,9 @@ if __name__ == "__main__":
 
     for i in range(15):
         print(average_streaks[i])
+
+    for i in range(15):
+        print(average_streaks_n[i])
 
     time.sleep(1)
     print("thread finished...exiting")

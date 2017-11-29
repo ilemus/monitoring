@@ -7,7 +7,7 @@ def get_ema(values, period):
         return []
 
     ret_arr = [0] * len(values)
-    multiplier = (2 / (period + 1))
+    multiplier = (2.0 / (period + 1))
     ret_arr[period - 1] = sum(values[0:period]) / period
     # print(sum(values[0:period]))
     # print(values[0])
